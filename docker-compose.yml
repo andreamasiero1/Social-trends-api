@@ -1,0 +1,32 @@
+services:
+  # Database PostgreSQL con estensione TimescaleDB
+  db:
+    image: timescale/timescaledb:latest-pg15
+    container_name: social_trends_db
+    environment:
+      POSTGRES_DB: social_trends
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_HOST_AUTH_METHOD: md5
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    command: >
+      postgres
+      -c listen_addresses='*'
+      -c shared_preload_libraries='timescaledb'
+
+  # Redis per Celery (worker asincroni)
+  redis:
+    image: redis:7-alpine
+    container_name: social_trends_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:
