@@ -22,6 +22,14 @@ class Settings(BaseSettings):
     
     @property
     def DATABASE_URL(self) -> str:
+        # Se esiste DATABASE_URL come variabile d'ambiente, usala
+        env_db_url = os.getenv("DATABASE_URL")
+        if env_db_url:
+            # Sostituisci postgresql:// con postgresql+asyncpg:// per asyncpg
+            if env_db_url.startswith("postgresql://"):
+                return env_db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            return env_db_url
+        # Altrimenti costruisci l'URL dalle singole variabili
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
     
     # Redis per Celery

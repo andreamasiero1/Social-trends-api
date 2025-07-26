@@ -20,7 +20,7 @@ async def get_current_api_key(
         )
     
     try:
-        # Cerca la chiave nel database
+        # Prova la connessione al database
         key_info = await execute_query(
             "SELECT * FROM api_keys WHERE key = $1 AND is_active = TRUE",
             api_key,
@@ -33,7 +33,14 @@ async def get_current_api_key(
                 detail="API Key non valida"
             )
         
-        # Controlla il rate limiting mensile
+        # Controlla il rate limiting mensile basato sul tier
+        tier_limits = {
+            'free': 1000,
+            'premium': 10000,
+            'enterprise': 100000
+        }
+        
+        monthly_limit = tier_limits.get(key_info['tier'], 1000)
         first_day_month = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         
         monthly_usage = await execute_query(
@@ -43,60 +50,66 @@ async def get_current_api_key(
             fetch="val"
         ) or 0
         
-        if monthly_usage >= key_info['monthly_limit']:
+        if monthly_usage >= monthly_limit:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail=f"Limite mensile di {key_info['monthly_limit']} richieste superato. Upgrade il tuo piano."
+                detail=f"Limite mensile di {monthly_limit} richieste superato per il tier {key_info['tier']}. Upgrade il tuo piano."
             )
         
         # Registra l'utilizzo
-        await execute_query(
-            "INSERT INTO api_usage (api_key, endpoint, timestamp) VALUES ($1, $2, $3)",
-            api_key,
-            "api_call",  # Sarà aggiornato da un middleware
-            datetime.now()
-        )
-        
-        # Aggiorna last_used
-        await execute_query(
-            "UPDATE api_keys SET last_used = $1, usage_count = usage_count + 1 WHERE key = $2",
-            datetime.now(),
-            api_key
-        )
+        try:
+            await execute_query(
+                "INSERT INTO api_usage (api_key, endpoint, timestamp) VALUES ($1, $2, $3)",
+                api_key,
+                "api_request",
+                datetime.now(),
+                fetch="none"
+            )
+            
+            # Aggiorna statistiche dell'API key
+            await execute_query(
+                "UPDATE api_keys SET last_used = $1, usage_count = usage_count + 1 WHERE key = $2",
+                datetime.now(),
+                api_key,
+                fetch="none"
+            )
+        except Exception as log_error:
+            print(f"Errore logging utilizzo: {log_error}")
         
         return {
-            "key": api_key,
+            "api_key": api_key,
+            "user_email": key_info['user_email'],
             "tier": key_info['tier'],
-            "monthly_limit": key_info['monthly_limit'],
-            "monthly_usage": monthly_usage + 1,
-            "user_email": key_info['user_email']
+            "monthly_usage": monthly_usage,
+            "monthly_limit": monthly_limit
         }
         
     except HTTPException:
+        # Re-raise le eccezioni HTTP (API key invalida, rate limit, etc.)
         raise
     except Exception as e:
         print(f"Database connection error in auth: {e}")
-        # Per testing, usiamo chiavi hardcoded
+        # Sistema di fallback per le API key di test
         test_keys = {
-            "demo-key-12345": {"tier": "free", "monthly_limit": 1000, "user_email": "demo@example.com"},
-            "dev-key-67890": {"tier": "developer", "monthly_limit": 10000, "user_email": "dev@example.com"},
-            "test-key-andrea": {"tier": "business", "monthly_limit": 50000, "user_email": "andrea@test.com"}
+            'test_free_key_123': {'user_email': 'test@example.com', 'tier': 'free'},
+            'test_premium_key_456': {'user_email': 'premium@example.com', 'tier': 'premium'},
+            'test_enterprise_key_789': {'user_email': 'enterprise@example.com', 'tier': 'enterprise'}
         }
         
         if api_key in test_keys:
-            key_data = test_keys[api_key]
+            print(f"Usando fallback per API key: {api_key}")
             return {
-                "key": api_key,
-                "tier": key_data["tier"],
-                "monthly_limit": key_data["monthly_limit"],
-                "monthly_usage": 1,
-                "user_email": key_data["user_email"]
+                "api_key": api_key,
+                "user_email": test_keys[api_key]['user_email'],
+                "tier": test_keys[api_key]['tier'],
+                "monthly_usage": 0,
+                "monthly_limit": 1000
             }
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="API Key non valida"
-            )
+        
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="API Key non valida"
+        )
 
 def require_tier(minimum_tier: str):
     """Decorator per richiedere un tier minimo"""
