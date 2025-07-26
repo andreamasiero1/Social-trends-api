@@ -14,5 +14,5 @@ services:
 databases:
   - name: social-trends-db
     databaseName: social_trends
-    user: postgres
+    user: social_trends_user
     plan: free
