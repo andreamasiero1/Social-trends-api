@@ -51,6 +51,14 @@ class Settings(BaseSettings):
     FREE_TIER_MONTHLY_LIMIT: int = 1000
     DEVELOPER_TIER_MONTHLY_LIMIT: int = 10000
     
+    # Email Configuration (opzionale - per invio email di verifica)
+    SMTP_SERVER: str = os.getenv("SMTP_SERVER", "")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USE_TLS: bool = os.getenv("SMTP_USE_TLS", "true").lower() == "true"
+    SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+    SMTP_FROM_EMAIL: str = os.getenv("SMTP_FROM_EMAIL", "noreply@social-trends-api.com")
+    
     class Config:
         env_file = ".env"
 

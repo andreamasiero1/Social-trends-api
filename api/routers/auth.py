@@ -1,6 +1,12 @@
 from fastapi import APIRouter, HTTPException, Query
-from api.models.trends import ApiKeyInfo
+from api.models.trends import (
+    ApiKeyInfo, UserRegistrationRequest, UserRegistrationResponse,
+    RapidAPIKeyRequest, RapidAPIKeyResponse, EmailVerificationRequest,
+    EmailVerificationResponse, UserInfo, ApiKeyDetailed
+)
 from api.core.database import execute_query
+from api.services.email_service import EmailService
+import json
 
 router = APIRouter()
 

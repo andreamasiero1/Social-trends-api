@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import time
 from api.core.config import settings
-from api.routers import trends, auth
+from api.routers import trends, auth, auth_v2
 
 # Crea l'applicazione FastAPI
 app = FastAPI(
@@ -46,6 +46,13 @@ app.include_router(
     tags=["🔑 Authentication"],
 )
 
+# Nuovo router auth con funzionalità migliorate
+app.include_router(
+    auth_v2.router,
+    prefix=f"{settings.API_V1_STR}/auth/v2",
+    tags=["🔐 Authentication V2"],
+)
+
 @app.get("/", tags=["🏠 Info"])
 async def root():
     """
@@ -66,7 +73,10 @@ async def root():
             "keyword_analysis": f"{settings.API_V1_STR}/trends/analysis/keyword",
             "related_hashtags": f"{settings.API_V1_STR}/trends/hashtags/related",
             "generate_api_key": f"{settings.API_V1_STR}/auth/generate-key",
-            "usage_stats": f"{settings.API_V1_STR}/auth/usage"
+            "usage_stats": f"{settings.API_V1_STR}/auth/usage",
+            "register_v2": f"{settings.API_V1_STR}/auth/v2/register",
+            "verify_email": f"{settings.API_V1_STR}/auth/v2/verify-email",
+            "my_account": f"{settings.API_V1_STR}/auth/v2/my-account"
         },
         "supported_platforms": ["tiktok", "instagram"],
         "plans": {
