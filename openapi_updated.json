@@ -1,0 +1,1237 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Social Trends API",
+    "description": "API per aggregare trend da TikTok e Instagram",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/trends/global": {
+      "get": {
+        "tags": [
+          "📈 Trends"
+        ],
+        "summary": "Get Global Trends",
+        "description": "🌍 **Trend Globali**\n\nRestituisce i trend più popolari aggregati da TikTok e Instagram.\nDisponibile anche nel piano Free.",
+        "operationId": "get_global_trends_v1_trends_global_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Numero massimo di trend da restituire",
+              "default": 10,
+              "title": "Limit"
+            },
+            "description": "Numero massimo di trend da restituire"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrendResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/trends/platform": {
+      "get": {
+        "tags": [
+          "📈 Trends"
+        ],
+        "summary": "Get Platform Trends",
+        "description": "📱 **Trend per Piattaforma**\n\nRestituisce i trend specifici per una singola piattaforma social.\nRichiede piano Developer o superiore.",
+        "operationId": "get_platform_trends_v1_trends_platform_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Piattaforma social da interrogare",
+              "enum": [
+                "tiktok",
+                "instagram"
+              ],
+              "title": "Source"
+            },
+            "description": "Piattaforma social da interrogare"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Numero massimo di trend da restituire",
+              "default": 20,
+              "title": "Limit"
+            },
+            "description": "Numero massimo di trend da restituire"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTrendResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/trends/country": {
+      "get": {
+        "tags": [
+          "📈 Trends"
+        ],
+        "summary": "Get Country Trends",
+        "description": "🌐 **Trend per Paese**\n\nRestituisce i trend specifici per un paese.\nRichiede piano Business o superiore.",
+        "operationId": "get_country_trends_v1_trends_country_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 2,
+              "description": "Codice paese ISO 3166-1 alpha-2 (es: IT, US, GB)",
+              "title": "Code"
+            },
+            "description": "Codice paese ISO 3166-1 alpha-2 (es: IT, US, GB)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Numero massimo di trend da restituire",
+              "default": 10,
+              "title": "Limit"
+            },
+            "description": "Numero massimo di trend da restituire"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CountryTrendResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/trends/analysis/keyword": {
+      "get": {
+        "tags": [
+          "📈 Trends"
+        ],
+        "summary": "Analyze Keyword Mentions",
+        "description": "🔍 **Analisi Keyword**\n\nAnalizza una specifica parola chiave o hashtag fornendo:\n- Volume totale di menzioni\n- Distribuzione per piattaforma  \n- Sentiment medio\n- Timeline oraria\n\nRichiede piano Developer o superiore.",
+        "operationId": "analyze_keyword_mentions_v1_trends_analysis_keyword_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "keyword",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Parola chiave o hashtag da analizzare",
+              "title": "Keyword"
+            },
+            "description": "Parola chiave o hashtag da analizzare"
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 168,
+              "minimum": 1,
+              "description": "Ore precedenti da analizzare (max 7 giorni)",
+              "default": 24,
+              "title": "Hours"
+            },
+            "description": "Ore precedenti da analizzare (max 7 giorni)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeywordAnalysis"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/trends/hashtags/related": {
+      "get": {
+        "tags": [
+          "📈 Trends"
+        ],
+        "summary": "Get Related Hashtags",
+        "description": "🔗 **Hashtag Correlati**\n\nTrova hashtag correlati a quello fornito basandosi sulla co-occorrenza\nnei trend e nelle menzioni.\n\nRichiede piano Developer o superiore.",
+        "operationId": "get_related_hashtags_v1_trends_hashtags_related_get",
+        "security": [
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "hashtag",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Hashtag di partenza (con o senza #)",
+              "title": "Hashtag"
+            },
+            "description": "Hashtag di partenza (con o senza #)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 30,
+              "minimum": 1,
+              "description": "Numero massimo di hashtag correlati",
+              "default": 10,
+              "title": "Limit"
+            },
+            "description": "Numero massimo di hashtag correlati"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelatedHashtagsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/generate-key": {
+      "post": {
+        "tags": [
+          "🔑 Authentication"
+        ],
+        "summary": "Generate Api Key",
+        "description": "🔑 **Genera nuova API Key**\n\nCrea una nuova API key per accedere all'API.\n\n**Piani disponibili:**\n- **Free**: 1.000 chiamate/mese, solo endpoint /global\n- **Developer**: 10.000 chiamate/mese, tutti gli endpoint base\n- **Business**: 50.000 chiamate/mese, include analytics avanzate\n- **Enterprise**: 200.000 chiamate/mese, supporto prioritario",
+        "operationId": "generate_api_key_v1_auth_generate_key_post",
+        "parameters": [
+          {
+            "name": "email",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Email per associare la chiave",
+              "title": "Email"
+            },
+            "description": "Email per associare la chiave"
+          },
+          {
+            "name": "tier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tier del piano",
+              "enum": [
+                "free",
+                "developer",
+                "business",
+                "enterprise"
+              ],
+              "default": "free",
+              "title": "Tier"
+            },
+            "description": "Tier del piano"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/usage": {
+      "get": {
+        "tags": [
+          "🔑 Authentication"
+        ],
+        "summary": "Get Usage Stats",
+        "description": "📊 **Statistiche utilizzo**\n\nMostra le statistiche di utilizzo della tua API key.",
+        "operationId": "get_usage_stats_v1_auth_usage_get",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "La tua API key",
+              "title": "Api Key"
+            },
+            "description": "La tua API key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Usage Stats V1 Auth Usage Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/v2/register": {
+      "post": {
+        "tags": [
+          "🔐 Authentication V2"
+        ],
+        "summary": "Register User",
+        "description": "🔐 **Registrazione Utente con Verifica Email**\n\nRegistra un nuovo utente e invia email di verifica.\nSolo dopo la verifica email riceverai la tua API key.\n\n**Piani disponibili:**\n- **Free**: 1.000 chiamate/mese, solo endpoint /global\n- **Developer**: 10.000 chiamate/mese, richiede upgrade a pagamento\n- **Business**: 50.000 chiamate/mese, richiede upgrade a pagamento\n- **Enterprise**: 200.000 chiamate/mese, richiede upgrade a pagamento",
+        "operationId": "register_user_v1_auth_v2_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRegistrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserRegistrationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/v2/verify-email": {
+      "get": {
+        "tags": [
+          "🔐 Authentication V2"
+        ],
+        "summary": "Verify Email",
+        "description": "✅ **Verifica Email**\n\nVerifica la tua email e ricevi la tua API key.\nQuesto endpoint viene chiamato automaticamente quando clicchi il link nell'email.",
+        "operationId": "verify_email_v1_auth_v2_verify_email_get",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailVerificationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/v2/rapidapi/provision": {
+      "post": {
+        "tags": [
+          "🔐 Authentication V2"
+        ],
+        "summary": "Provision Rapidapi Key",
+        "description": "🚀 **Provisioning API Key per RapidAPI**\n\nEndpoint interno per RapidAPI per creare API keys automaticamente\nquando un utente si iscrive a un piano a pagamento.",
+        "operationId": "provision_rapidapi_key_v1_auth_v2_rapidapi_provision_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RapidAPIKeyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RapidAPIKeyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/v2/generate-key": {
+      "post": {
+        "tags": [
+          "🔐 Authentication V2"
+        ],
+        "summary": "Generate Api Key",
+        "description": "🔑 **Genera nuova API Key (DEPRECATO)**\n\n⚠️ **DEPRECATO**: Usa `/auth/register` per nuove registrazioni.\n\nQuesto endpoint è mantenuto per compatibilità con le integrazioni esistenti.",
+        "operationId": "generate_api_key_v1_auth_v2_generate_key_post",
+        "parameters": [
+          {
+            "name": "email",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Email per associare la chiave",
+              "title": "Email"
+            },
+            "description": "Email per associare la chiave"
+          },
+          {
+            "name": "tier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Tier del piano",
+              "enum": [
+                "free",
+                "developer",
+                "business",
+                "enterprise"
+              ],
+              "default": "free",
+              "title": "Tier"
+            },
+            "description": "Tier del piano"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/v2/usage": {
+      "get": {
+        "tags": [
+          "🔐 Authentication V2"
+        ],
+        "summary": "Get Usage Stats",
+        "description": "📊 **Statistiche utilizzo**\n\nMostra le statistiche di utilizzo della tua API key.",
+        "operationId": "get_usage_stats_v1_auth_v2_usage_get",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "La tua API key",
+              "title": "Api Key"
+            },
+            "description": "La tua API key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Usage Stats V1 Auth V2 Usage Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/v2/my-account": {
+      "get": {
+        "tags": [
+          "🔐 Authentication V2"
+        ],
+        "summary": "Get Account Info",
+        "description": "👤 **Informazioni Account**\n\nMostra tutte le informazioni del tuo account e delle tue API keys.",
+        "operationId": "get_account_info_v1_auth_v2_my_account_get",
+        "parameters": [
+          {
+            "name": "api_key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "La tua API key",
+              "title": "Api Key"
+            },
+            "description": "La tua API key"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Account Info V1 Auth V2 My Account Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "tags": [
+          "🏠 Info"
+        ],
+        "summary": "Root",
+        "description": "🚀 **Welcome to Social Trends API**\n\nAPI per aggregare e analizzare trend da TikTok e Instagram in tempo reale.",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "🏠 Info"
+        ],
+        "summary": "Health Check",
+        "description": "✅ **Health Check**\n\nVerifica che l'API sia operativa.",
+        "operationId": "health_check_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiKeyInfo": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "tier": {
+            "type": "string",
+            "title": "Tier"
+          },
+          "monthly_limit": {
+            "type": "integer",
+            "title": "Monthly Limit"
+          },
+          "current_usage": {
+            "type": "integer",
+            "title": "Current Usage"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "tier",
+          "monthly_limit",
+          "current_usage"
+        ],
+        "title": "ApiKeyInfo"
+      },
+      "CountryTrendResponse": {
+        "properties": {
+          "country": {
+            "type": "string",
+            "title": "Country"
+          },
+          "last_updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Updated"
+          },
+          "trends": {
+            "items": {
+              "$ref": "#/components/schemas/TrendItem"
+            },
+            "type": "array",
+            "title": "Trends"
+          }
+        },
+        "type": "object",
+        "required": [
+          "country",
+          "last_updated",
+          "trends"
+        ],
+        "title": "CountryTrendResponse"
+      },
+      "EmailVerificationResponse": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "EmailVerificationResponse"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "KeywordAnalysis": {
+        "properties": {
+          "keyword": {
+            "type": "string",
+            "title": "Keyword"
+          },
+          "total_mentions": {
+            "type": "integer",
+            "title": "Total Mentions"
+          },
+          "platforms": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Platforms"
+          },
+          "sentiment_avg": {
+            "type": "number",
+            "title": "Sentiment Avg"
+          },
+          "timeline": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Timeline"
+          }
+        },
+        "type": "object",
+        "required": [
+          "keyword",
+          "total_mentions",
+          "platforms",
+          "sentiment_avg",
+          "timeline"
+        ],
+        "title": "KeywordAnalysis"
+      },
+      "PlatformTrendItem": {
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "volume": {
+            "type": "integer",
+            "title": "Volume"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "rank",
+          "name",
+          "volume"
+        ],
+        "title": "PlatformTrendItem"
+      },
+      "PlatformTrendResponse": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "title": "Platform"
+          },
+          "last_updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Updated"
+          },
+          "total_trends": {
+            "type": "integer",
+            "title": "Total Trends"
+          },
+          "trends": {
+            "items": {
+              "$ref": "#/components/schemas/PlatformTrendItem"
+            },
+            "type": "array",
+            "title": "Trends"
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "last_updated",
+          "total_trends",
+          "trends"
+        ],
+        "title": "PlatformTrendResponse"
+      },
+      "RapidAPIKeyRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "tier": {
+            "type": "string",
+            "title": "Tier"
+          },
+          "rapidapi_user_id": {
+            "type": "string",
+            "title": "Rapidapi User Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "tier",
+          "rapidapi_user_id"
+        ],
+        "title": "RapidAPIKeyRequest"
+      },
+      "RapidAPIKeyResponse": {
+        "properties": {
+          "api_key": {
+            "type": "string",
+            "title": "Api Key"
+          },
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "tier": {
+            "type": "string",
+            "title": "Tier"
+          },
+          "monthly_limit": {
+            "type": "integer",
+            "title": "Monthly Limit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "api_key",
+          "user_id",
+          "tier",
+          "monthly_limit"
+        ],
+        "title": "RapidAPIKeyResponse"
+      },
+      "RelatedHashtag": {
+        "properties": {
+          "hashtag": {
+            "type": "string",
+            "title": "Hashtag"
+          },
+          "relation_score": {
+            "type": "number",
+            "title": "Relation Score"
+          },
+          "volume": {
+            "type": "integer",
+            "title": "Volume"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hashtag",
+          "relation_score",
+          "volume"
+        ],
+        "title": "RelatedHashtag"
+      },
+      "RelatedHashtagsResponse": {
+        "properties": {
+          "hashtag": {
+            "type": "string",
+            "title": "Hashtag"
+          },
+          "related_hashtags": {
+            "items": {
+              "$ref": "#/components/schemas/RelatedHashtag"
+            },
+            "type": "array",
+            "title": "Related Hashtags"
+          },
+          "last_updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Updated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "hashtag",
+          "related_hashtags",
+          "last_updated"
+        ],
+        "title": "RelatedHashtagsResponse"
+      },
+      "TrendItem": {
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "title": "Rank"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "volume": {
+            "type": "integer",
+            "title": "Volume"
+          },
+          "growth_percentage": {
+            "type": "number",
+            "title": "Growth Percentage",
+            "default": 0.0
+          },
+          "platforms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Platforms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rank",
+          "name",
+          "volume",
+          "platforms"
+        ],
+        "title": "TrendItem"
+      },
+      "TrendResponse": {
+        "properties": {
+          "last_updated": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Updated"
+          },
+          "total_trends": {
+            "type": "integer",
+            "title": "Total Trends"
+          },
+          "trends": {
+            "items": {
+              "$ref": "#/components/schemas/TrendItem"
+            },
+            "type": "array",
+            "title": "Trends"
+          }
+        },
+        "type": "object",
+        "required": [
+          "last_updated",
+          "total_trends",
+          "trends"
+        ],
+        "title": "TrendResponse"
+      },
+      "UserRegistrationRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "tier": {
+            "type": "string",
+            "pattern": "^(free|developer|business|enterprise)$",
+            "title": "Tier",
+            "default": "free"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "UserRegistrationRequest"
+      },
+      "UserRegistrationResponse": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key"
+          },
+          "requires_email_verification": {
+            "type": "boolean",
+            "title": "Requires Email Verification",
+            "default": false
+          },
+          "verification_sent_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verification Sent To"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "UserRegistrationResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "APIKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    }
+  }
+}

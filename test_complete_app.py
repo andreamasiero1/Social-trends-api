@@ -1,7 +1,147 @@
 #!/usr/bin/env python3
 """
-Test completo dell'app FastAPI con il nuovo sistema integrato.
+Test completo dell'app FastAPI con il nuovo sistema trends con fallback
 """
+
+import requests
+import json
+import time
+from datetime import datetime
+
+def test_country_endpoint(country_code="IT", limit=3):
+    """Testa l'endpoint country trends"""
+    
+    url = f"https://social-trends-api.onrender.com/v1/trends/country"
+    headers = {"X-API-Key": "test_enterprise_key_789"}
+    params = {"code": country_code, "limit": limit}
+    
+    try:
+        print(f"🌍 Testing /v1/trends/country per {country_code}...")
+        
+        response = requests.get(url, headers=headers, params=params, timeout=10)
+        
+        print(f"Status: {response.status_code}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            trends_count = len(data.get("trends", []))
+            
+            if trends_count > 0:
+                print(f"✅ SUCCESS! Trovati {trends_count} trends per {country_code}")
+                
+                # Mostra primi 3 trend
+                for trend in data["trends"][:3]:
+                    print(f"  {trend.get('rank', '?')}. {trend.get('name', 'N/A')} - {trend.get('volume', 0):,} vol")
+                
+                return True
+            else:
+                print(f"❌ STILL BROKEN: trends array vuoto per {country_code}")
+                return False
+        else:
+            print(f"❌ HTTP Error {response.status_code}: {response.text[:100]}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error: {str(e)}")
+        return False
+
+def test_auth_endpoints():
+    """Testa se i nuovi endpoint auth sono disponibili"""
+    
+    auth_endpoints = [
+        "/api/v2/auth/register",
+        "/api/v2/auth/my-account",
+        "/api/v2/auth/verify-email"
+    ]
+    
+    print("\n🔐 Testing nuovi endpoint autenticazione...")
+    
+    available_count = 0
+    
+    for endpoint in auth_endpoints:
+        try:
+            url = f"https://social-trends-api.onrender.com{endpoint}"
+            response = requests.get(url, timeout=5)
+            
+            if response.status_code != 404:
+                print(f"  ✅ {endpoint} - Disponibile (status: {response.status_code})")
+                available_count += 1
+            else:
+                print(f"  ❌ {endpoint} - Non disponibile (404)")
+                
+        except Exception as e:
+            print(f"  ⚠️  {endpoint} - Error: {str(e)[:50]}")
+    
+    return available_count
+
+def check_global_trends():
+    """Test endpoint trends globali per confronto"""
+    
+    print("\n📊 Testing /v1/trends/global (per confronto)...")
+    
+    try:
+        url = "https://social-trends-api.onrender.com/v1/trends/global"
+        headers = {"X-API-Key": "test_free_key_123"}
+        params = {"limit": 3}
+        
+        response = requests.get(url, headers=headers, params=params, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            trends_count = len(data.get("trends", []))
+            print(f"✅ Global trends working: {trends_count} trends")
+            return True
+        else:
+            print(f"❌ Global trends broken: {response.status_code}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error: {str(e)}")
+        return False
+
+def main():
+    """Test completo del sistema"""
+    
+    print("🧪 SOCIAL TRENDS API - TEST COMPLETO DEPLOYMENT")
+    print("=" * 60)
+    print(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print()    
+    # Test 1: Endpoint globali (baseline)
+    global_ok = check_global_trends()
+    
+    # Test 2: Endpoint country (il problema principale)
+    countries_to_test = ["IT", "US", "FR", "GB"]
+    country_results = []
+    
+    for country in countries_to_test:
+        result = test_country_endpoint(country, 2)
+        country_results.append(result)
+        time.sleep(1)  # Rate limiting
+    
+    # Test 3: Nuovi endpoint auth
+    auth_available = test_auth_endpoints()
+    
+    # Summary
+    print("\n📋 RISULTATI:")
+    print(f"  🌍 Global trends: {'✅ OK' if global_ok else '❌ BROKEN'}")
+    print(f"  🌐 Country trends: {sum(country_results)}/{len(country_results)} paesi OK")
+    print(f"  🔐 Auth endpoints: {auth_available}/3 disponibili")
+    
+    # Determine deployment status
+    if sum(country_results) > 0:
+        print("\n🎉 COUNTRY TRENDS FIXED! Il fallback intelligente funziona!")
+    elif global_ok:
+        print("\n⏳ Deployment non ancora completato - trends country ancora vuoti")
+    else:
+        print("\n❌ Problemi generali con l'API")
+    
+    if auth_available >= 2:
+        print("✅ Deployment nuove funzionalità completato!")
+    else:
+        print("⏳ Deployment nuove funzionalità in corso...")
+
+if __name__ == "__main__":
+    main()
 
 import sys
 import os

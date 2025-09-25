@@ -1,4 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
+from typing import Optional, Literal
 from api.models.trends import (
     ApiKeyInfo, UserRegistrationRequest, UserRegistrationResponse,
     RapidAPIKeyRequest, RapidAPIKeyResponse, EmailVerificationRequest,
@@ -9,6 +11,51 @@ from api.services.email_service import EmailService
 import json
 
 router = APIRouter()
+
+class GenerateKeyRequestV2(BaseModel):
+    email: Optional[str] = None
+    tier: Optional[Literal["free", "developer", "business", "enterprise"]] = "free"
+
+async def _generate_api_key_core(email: str, tier: str) -> ApiKeyInfo:
+    # Genera la chiave usando la funzione del database
+    new_key = await execute_query(
+        "SELECT generate_api_key($1, $2) as key",
+        email,
+        tier,
+        fetch="val"
+    )
+
+    if not new_key:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Impossibile generare la chiave. Verifica l'email o il piano richiesto. "
+                "Per nuovi utenti usa /v1/auth/v2/register con verifica email."
+            )
+        )
+
+    # Recupera le informazioni della chiave creata
+    key_info = await execute_query(
+        "SELECT * FROM api_keys WHERE key = $1",
+        new_key,
+        fetch="one"
+    )
+
+    if not key_info:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Errore interno: chiave generata ma non reperita a database. "
+                "Riprova più tardi o registra l'account tramite /v1/auth/v2/register."
+            )
+        )
+
+    return ApiKeyInfo(
+        key=new_key,
+        tier=key_info['tier'],
+        monthly_limit=key_info['monthly_limit'],
+        current_usage=0
+    )
 
 @router.post("/register", response_model=UserRegistrationResponse)
 async def register_user(request: UserRegistrationRequest):
@@ -136,44 +183,47 @@ async def provision_rapidapi_key(request: RapidAPIKeyRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore nel provisioning RapidAPI: {str(e)}")
 
-@router.post("/generate-key", response_model=ApiKeyInfo)
-async def generate_api_key(
+@router.get("/generate-key", response_model=ApiKeyInfo)
+async def generate_api_key_get(
     email: str = Query(..., description="Email per associare la chiave"),
     tier: str = Query("free", description="Tier del piano", enum=["free", "developer", "business", "enterprise"])
 ):
     """
-    🔑 **Genera nuova API Key (DEPRECATO)**
-    
-    ⚠️ **DEPRECATO**: Usa `/auth/register` per nuove registrazioni.
-    
-    Questo endpoint è mantenuto per compatibilità con le integrazioni esistenti.
+    🔑 **Genera nuova API Key (DEPRECATO)** - GET
+
+    Compatibilità per client che inviano parametri in query. Consigliamo POST /v1/auth/v2/register.
     """
     try:
-        # Genera la chiave usando la funzione del database
-        new_key = await execute_query(
-            "SELECT generate_api_key($1, $2) as key",
-            email,
-            tier,
-            fetch="val"
-        )
-        
-        # Recupera le informazioni della chiave creata
-        key_info = await execute_query(
-            "SELECT * FROM api_keys WHERE key = $1",
-            new_key,
-            fetch="one"
-        )
-        
-        if not key_info:
-            raise HTTPException(status_code=500, detail="Errore interno: impossibile recuperare la chiave dopo la creazione.")
-        
-        return ApiKeyInfo(
-            key=new_key,
-            tier=key_info['tier'],
-            monthly_limit=key_info['monthly_limit'],
-            current_usage=0
-        )
-        
+        return await _generate_api_key_core(email, tier)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore nella generazione della chiave: {str(e)}")
+
+@router.post("/generate-key", response_model=ApiKeyInfo)
+async def generate_api_key_post(
+    email: Optional[str] = Query(None, description="Email per associare la chiave"),
+    tier: Optional[str] = Query(None, description="Tier del piano", enum=["free", "developer", "business", "enterprise"]),
+    body: Optional[GenerateKeyRequestV2] = None,
+):
+    """
+    🔑 **Genera nuova API Key (DEPRECATO)** - POST
+
+    Accetta query params o body JSON (i query params hanno precedenza). Consigliamo di usare
+    POST /v1/auth/v2/register per nuovi utenti.
+    """
+    try:
+        effective_email = email or (body.email if body and body.email else None)
+        effective_tier = tier or (body.tier if body and body.tier else "free")
+
+        if not effective_email:
+            raise HTTPException(status_code=422, detail="Field 'email' required in query or JSON body")
+        if effective_tier not in {"free", "developer", "business", "enterprise"}:
+            raise HTTPException(status_code=422, detail="Invalid 'tier'. Use one of: free, developer, business, enterprise")
+
+        return await _generate_api_key_core(effective_email, effective_tier)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore nella generazione della chiave: {str(e)}")
 
