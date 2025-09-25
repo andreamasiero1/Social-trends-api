@@ -2,6 +2,7 @@ from fastapi import HTTPException, Security, Depends, status
 from fastapi.security.api_key import APIKeyHeader
 from sqlalchemy.ext.asyncio import AsyncSession
 from api.core.database import get_db, execute_query
+from api.core.config import settings
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 
@@ -35,9 +36,10 @@ async def get_current_api_key(
         
         # Controlla il rate limiting mensile basato sul tier
         tier_limits = {
-            'free': 1000,
-            'premium': 10000,
-            'enterprise': 100000
+            'free': settings.FREE_TIER_MONTHLY_LIMIT,
+            'developer': settings.DEVELOPER_TIER_MONTHLY_LIMIT,
+            'business': settings.BUSINESS_TIER_MONTHLY_LIMIT,
+            'enterprise': settings.ENTERPRISE_TIER_MONTHLY_LIMIT
         }
         
         monthly_limit = tier_limits.get(key_info['tier'], 1000)
@@ -89,22 +91,23 @@ async def get_current_api_key(
         raise
     except Exception as e:
         print(f"Database connection error in auth: {e}")
-        # Sistema di fallback per le API key di test
-        test_keys = {
-            'test_free_key_123': {'user_email': 'test@example.com', 'tier': 'free'},
-            'test_premium_key_456': {'user_email': 'premium@example.com', 'tier': 'premium'},
-            'test_enterprise_key_789': {'user_email': 'enterprise@example.com', 'tier': 'enterprise'}
-        }
-        
-        if api_key in test_keys:
-            print(f"Usando fallback per API key: {api_key}")
-            return {
-                "api_key": api_key,
-                "user_email": test_keys[api_key]['user_email'],
-                "tier": test_keys[api_key]['tier'],
-                "monthly_usage": 0,
-                "monthly_limit": 1000
+        # Sistema di fallback per le API key di test (abilitabile via settings)
+        if settings.ACCEPT_TEST_KEYS:
+            test_keys = {
+                'test_free_key_123': {'user_email': 'test@example.com', 'tier': 'free'},
+                'test_developer_key_456': {'user_email': 'developer@example.com', 'tier': 'developer'},
+                'test_enterprise_key_789': {'user_email': 'enterprise@example.com', 'tier': 'enterprise'}
             }
+            if api_key in test_keys:
+                print(f"Usando fallback per API key di test: {api_key}")
+                tier = test_keys[api_key]['tier']
+                return {
+                    "api_key": api_key,
+                    "user_email": test_keys[api_key]['user_email'],
+                    "tier": tier,
+                    "monthly_usage": 0,
+                    "monthly_limit": tier_limits.get(tier, settings.FREE_TIER_MONTHLY_LIMIT)
+                }
         
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

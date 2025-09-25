@@ -50,6 +50,11 @@ class Settings(BaseSettings):
     # Rate limiting
     FREE_TIER_MONTHLY_LIMIT: int = 1000
     DEVELOPER_TIER_MONTHLY_LIMIT: int = 10000
+    BUSINESS_TIER_MONTHLY_LIMIT: int = 50000
+    ENTERPRISE_TIER_MONTHLY_LIMIT: int = 200000
+
+    # Demo / Test mode
+    ACCEPT_TEST_KEYS: bool = os.getenv("ACCEPT_TEST_KEYS", "false").lower() == "true"
     
     # Email Configuration (opzionale - per invio email di verifica)
     SMTP_SERVER: str = os.getenv("SMTP_SERVER", "")
