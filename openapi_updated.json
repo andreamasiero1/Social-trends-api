@@ -5,6 +5,12 @@
     "description": "API per aggregare trend da TikTok e Instagram",
     "version": "1.0.0"
   },
+  "servers": [
+    {
+      "url": "https://social-trends-api.onrender.com",
+      "description": "Render production"
+    }
+  ],
   "paths": {
     "/v1/trends/global": {
       "get": {
