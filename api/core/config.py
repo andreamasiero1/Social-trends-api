@@ -13,22 +13,21 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = int(os.getenv("PORT", 8000))
     
-    # Database
+    # Database - supporta sia DATABASE_URL che singole variabili
+    DATABASE_URL: str = ""  # Campo per pydantic
     POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "localhost")
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
     POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "postgres123")
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "social_trends")
     
-    @property
-    def DATABASE_URL(self) -> str:
-        # Se esiste DATABASE_URL come variabile d'ambiente, usala
-        env_db_url = os.getenv("DATABASE_URL")
-        if env_db_url:
+    def get_database_url(self) -> str:
+        # Se DATABASE_URL è configurato nel .env, usalo
+        if self.DATABASE_URL:
             # Sostituisci postgresql:// con postgresql+asyncpg:// per asyncpg
-            if env_db_url.startswith("postgresql://"):
-                return env_db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-            return env_db_url
+            if self.DATABASE_URL.startswith("postgresql://"):
+                return self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+            return self.DATABASE_URL
         # Altrimenti costruisci l'URL dalle singole variabili
         return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
     
@@ -63,6 +62,9 @@ class Settings(BaseSettings):
     SMTP_USERNAME: str = os.getenv("SMTP_USERNAME", "")
     SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
     SMTP_FROM_EMAIL: str = os.getenv("SMTP_FROM_EMAIL", "noreply@social-trends-api.com")
+    
+    # URL base per i link di verifica
+    BASE_URL: str = os.getenv("BASE_URL", "http://localhost:8000")
     
     class Config:
         env_file = ".env"

@@ -29,8 +29,8 @@ class EmailService:
             user_id, verification_token, expires_at
         )
         
-        # URL di verifica (in produzione useresti il tuo dominio)
-        verification_url = f"https://social-trends-api.onrender.com/v1/auth/v2/verify-email?token={verification_token}"
+        # URL di verifica (usa BASE_URL dalla configurazione)
+        verification_url = f"{settings.BASE_URL}/v1/auth/v2/verify-email?token={verification_token}"
         
         # Contenuto dell'email
         email_content = f"""
