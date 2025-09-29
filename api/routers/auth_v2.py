@@ -3,11 +3,9 @@ from pydantic import BaseModel
 from typing import Optional, Literal
 from api.models.trends import (
     ApiKeyInfo, UserRegistrationRequest, UserRegistrationResponse,
-    RapidAPIKeyRequest, RapidAPIKeyResponse, EmailVerificationRequest,
-    EmailVerificationResponse, UserInfo, ApiKeyDetailed
+    RapidAPIKeyRequest, RapidAPIKeyResponse, UserInfo, ApiKeyDetailed
 )
 from api.core.database import execute_query
-from api.services.email_service import EmailService
 import json
 
 router = APIRouter()
@@ -57,101 +55,75 @@ async def _generate_api_key_core(email: str, tier: str) -> ApiKeyInfo:
         current_usage=0
     )
 
-@router.post("/register", response_model=UserRegistrationResponse)
+@router.post("/register", response_model=dict)
 async def register_user(request: UserRegistrationRequest):
     """
-    🔐 **Registrazione Utente con Verifica Email**
+    � **Registrazione Utente Istantanea**
     
-    Registra un nuovo utente e invia email di verifica.
-    Solo dopo la verifica email riceverai la tua API key.
+    Registra un nuovo utente e genera immediatamente l'API key.
+    Perfetto per RapidAPI - nessuna verifica email richiesta!
     
     **Piani disponibili:**
-    - **Free**: 1.000 chiamate/mese, solo endpoint /global
-    - **Developer**: 10.000 chiamate/mese, richiede upgrade a pagamento
-    - **Business**: 50.000 chiamate/mese, richiede upgrade a pagamento
-    - **Enterprise**: 200.000 chiamate/mese, richiede upgrade a pagamento
+    - **Free**: 1.000 chiamate/mese
+    - **Developer**: 10.000 chiamate/mese  
+    - **Business**: 50.000 chiamate/mese
+    - **Enterprise**: 200.000 chiamate/mese
     """
     try:
-        # Controlla se l'utente esiste già
+        # Verifica se email già esiste
         existing_user = await execute_query(
-            "SELECT id, is_email_verified FROM users WHERE email = $1",
+            "SELECT id FROM users WHERE email = $1",
             request.email,
             fetch="one"
         )
         
         if existing_user:
-            if existing_user['is_email_verified']:
-                raise HTTPException(
-                    status_code=400, 
-                    detail="Email già registrata e verificata. Usa /auth/usage per vedere le tue API keys."
-                )
-            else:
-                # Reinvia email di verifica
-                verification_token = await EmailService.send_verification_email(
-                    request.email, 
-                    existing_user['id']
-                )
-                return UserRegistrationResponse(
-                    message="Email di verifica reinviata. Controlla la tua casella di posta.",
-                    requires_email_verification=True,
-                    verification_sent_to=request.email
-                )
+            return {
+                "status": "error",
+                "message": "Email già registrata. Se hai perso l'API key, usa l'endpoint /keys/{email} per recuperarla.",
+                "api_key": None
+            }
         
-        # Se il piano non è "free", avvisa che serve pagamento
-        if request.tier != "free":
-            return UserRegistrationResponse(
-                message=f"I piani a pagamento ({request.tier}) sono disponibili solo tramite RapidAPI. Registrati gratuitamente e fai upgrade su RapidAPI.",
-                requires_email_verification=False
-            )
-        
-        # Crea nuovo utente (non verificato)
-        user_id = await execute_query(
-            """
-            INSERT INTO users (email, is_email_verified, registration_source)
-            VALUES ($1, FALSE, 'direct')
-            RETURNING id
-            """,
+        # Genera direttamente l'API key
+        result = await execute_query(
+            "SELECT generate_api_key_v2($1, $2, 'instant') as result",
             request.email,
+            request.tier or "free",
             fetch="val"
         )
         
-        # Invia email di verifica
-        verification_token = await EmailService.send_verification_email(request.email, user_id)
+        api_data = json.loads(result)
         
-        return UserRegistrationResponse(
-            message="Registrazione completata! Ti abbiamo inviato un'email di verifica.",
-            requires_email_verification=True,
-            verification_sent_to=request.email
+        # Marca utente come verificato immediatamente
+        await execute_query(
+            "UPDATE users SET is_email_verified = TRUE WHERE email = $1",
+            request.email
         )
         
-    except HTTPException:
-        raise
+        return {
+            "status": "success",
+            "message": "🎉 API key generata con successo!",
+            "api_key": api_data['api_key'],
+            "tier": request.tier or "free",
+            "email": request.email,
+            "monthly_limit": _get_monthly_limit(request.tier or "free"),
+            "note": "⚠️ Salva questa API key in un posto sicuro. Non sarà possibile recuperarla se persa."
+        }
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Errore nella registrazione: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Errore nella generazione API key: {str(e)}")
 
-@router.get("/verify-email", response_model=EmailVerificationResponse)
-async def verify_email(token: str):
-    """
-    ✅ **Verifica Email**
-    
-    Verifica la tua email e ricevi la tua API key.
-    Questo endpoint viene chiamato automaticamente quando clicchi il link nell'email.
-    """
-    try:
-        result = await EmailService.verify_email_token(token)
-        
-        if not result['success']:
-            raise HTTPException(status_code=400, detail=result['message'])
-        
-        return EmailVerificationResponse(
-            message=f"✅ Email verificata con successo! La tua API key è: {result['api_key']}",
-            api_key=result['api_key']
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Errore nella verifica: {str(e)}")
+def _get_monthly_limit(tier: str) -> int:
+    """Restituisce il limite mensile per il tier"""
+    limits = {
+        "free": 1000,
+        "developer": 10000, 
+        "business": 50000,
+        "enterprise": 200000
+    }
+    return limits.get(tier, 1000)
+
+
 
 @router.post("/rapidapi/provision", response_model=RapidAPIKeyResponse)
 async def provision_rapidapi_key(request: RapidAPIKeyRequest):
@@ -356,3 +328,63 @@ async def get_account_info(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errore nel recupero account: {str(e)}")
+
+
+@router.get("/keys/{email}")
+async def get_user_api_keys(email: str):
+    """
+    Recupera tutte le API key attive per un utente
+    Utile per RapidAPI quando un utente perde la chiave
+    """
+    try:
+        user = await execute_query(
+            "SELECT id, email, is_email_verified FROM users WHERE email = $1",
+            email,
+            fetch="one"
+        )
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="Email non trovata nel sistema")
+        
+        # Recupera tutte le chiavi attive
+        api_keys = await execute_query(
+            """
+            SELECT api_key, tier, is_active, created_at, 
+                   monthly_requests, last_used_at
+            FROM api_keys 
+            WHERE user_id = $1 AND is_active = TRUE
+            ORDER BY created_at DESC
+            """,
+            user['id']
+        )
+        
+        if not api_keys:
+            return {
+                "status": "not_found",
+                "message": "Nessuna API key attiva trovata per questa email",
+                "email": email,
+                "suggestion": "Usa /register-instant per generare una nuova chiave"
+            }
+        
+        return {
+            "status": "success",
+            "email": email,
+            "total_keys": len(api_keys),
+            "keys": [
+                {
+                    "api_key": key['api_key'],
+                    "tier": key['tier'],
+                    "created_at": key['created_at'].isoformat() if key['created_at'] else None,
+                    "monthly_requests": key['monthly_requests'],
+                    "monthly_limit": _get_monthly_limit(key['tier']),
+                    "last_used": key['last_used_at'].isoformat() if key['last_used_at'] else "Mai usata"
+                }
+                for key in api_keys
+            ],
+            "note": "⚠️ Proteggi queste API key. Non condividerle pubblicamente."
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errore nel recupero chiavi: {str(e)}")

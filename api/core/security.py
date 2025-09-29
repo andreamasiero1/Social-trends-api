@@ -29,6 +29,22 @@ async def get_current_api_key(
         )
         
         if not key_info:
+            # In demo mode, accetta chiavi di test anche se la query non ha restituito risultati
+            if settings.ACCEPT_TEST_KEYS:
+                test_keys = {
+                    'test_free_key_123': {'user_email': 'test@example.com', 'tier': 'free'},
+                    'test_developer_key_456': {'user_email': 'developer@example.com', 'tier': 'developer'},
+                    'test_enterprise_key_789': {'user_email': 'enterprise@example.com', 'tier': 'enterprise'}
+                }
+                if api_key in test_keys:
+                    tier = test_keys[api_key]['tier']
+                    return {
+                        "api_key": api_key,
+                        "user_email": test_keys[api_key]['user_email'],
+                        "tier": tier,
+                        "monthly_usage": 0,
+                        "monthly_limit": tier_limits.get(tier, settings.FREE_TIER_MONTHLY_LIMIT)
+                    }
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="API Key non valida"
