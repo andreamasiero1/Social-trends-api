@@ -70,21 +70,7 @@ async def register_user(request: UserRegistrationRequest):
     - **Enterprise**: 200.000 chiamate/mese
     """
     try:
-        # Verifica se email già esiste
-        existing_user = await execute_query(
-            "SELECT id FROM users WHERE email = $1",
-            request.email,
-            fetch="one"
-        )
-        
-        if existing_user:
-            return {
-                "status": "error",
-                "message": "Email già registrata. Se hai perso l'API key, usa l'endpoint /keys/{email} per recuperarla.",
-                "api_key": None
-            }
-        
-        # Genera direttamente l'API key
+        # Genera direttamente l'API key - la funzione del database gestisce i duplicati
         result = await execute_query(
             "SELECT generate_api_key_v2($1, $2, 'instant') as result",
             request.email,
@@ -109,13 +95,18 @@ async def register_user(request: UserRegistrationRequest):
         # Controlla se la funzione ha restituito un errore
         if not api_data.get("success", False):
             error_msg = api_data.get("message", "Errore sconosciuto nella generazione API key")
-            raise HTTPException(status_code=400, detail=error_msg)
-        
-        # Marca utente come verificato immediatamente
-        await execute_query(
-            "UPDATE users SET is_email_verified = TRUE WHERE email = $1",
-            request.email
-        )
+            error_type = api_data.get("error", "unknown")
+            
+            # Gestisci specificamente l'errore di email duplicata
+            if error_type == "email_already_exists":
+                return {
+                    "status": "error",
+                    "message": "Email già registrata. Se hai perso l'API key, usa l'endpoint /keys/{email} per recuperarla.",
+                    "api_key": None,
+                    "suggestion": f"GET /v1/auth/v2/keys/{request.email}"
+                }
+            else:
+                raise HTTPException(status_code=400, detail=error_msg)
         
         return {
             "status": "success",
