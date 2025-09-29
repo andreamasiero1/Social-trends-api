@@ -33,25 +33,39 @@ async def add_process_time_header(request: Request, call_next):
     return response
 
 # Include i router
-app.include_router(
-    trends.router,
-    prefix=f"{settings.API_V1_STR}/trends",
-    tags=["📈 Trends"],
-    responses={404: {"description": "Not found"}},
-)
+try:
+    app.include_router(
+        trends.router,
+        prefix=f"{settings.API_V1_STR}/trends",
+        tags=["📈 Trends"],
+        responses={404: {"description": "Not found"}},
+    )
+    print("✅ Trends router loaded successfully")
+except Exception as e:
+    print(f"❌ Failed to load trends router: {e}")
 
-app.include_router(
-    auth.router,
-    prefix=f"{settings.API_V1_STR}/auth",
-    tags=["🔑 Authentication"],
-)
+try:
+    app.include_router(
+        auth.router,
+        prefix=f"{settings.API_V1_STR}/auth",
+        tags=["🔑 Authentication"],
+    )
+    print("✅ Auth router loaded successfully")
+except Exception as e:
+    print(f"❌ Failed to load auth router: {e}")
 
 # Nuovo router auth con funzionalità migliorate
-app.include_router(
-    auth_v2.router,
-    prefix=f"{settings.API_V1_STR}/auth/v2",
-    tags=["🔐 Authentication V2"],
-)
+try:
+    app.include_router(
+        auth_v2.router,
+        prefix=f"{settings.API_V1_STR}/auth/v2",
+        tags=["🔐 Authentication V2"],
+    )
+    print("✅ Auth V2 router loaded successfully")
+except Exception as e:
+    print(f"❌ Failed to load auth v2 router: {e}")
+    import traceback
+    traceback.print_exc()
 
 @app.get("/", tags=["🏠 Info"])
 async def root():
