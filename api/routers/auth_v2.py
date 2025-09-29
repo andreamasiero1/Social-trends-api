@@ -92,7 +92,24 @@ async def register_user(request: UserRegistrationRequest):
             fetch="val"
         )
         
-        api_data = json.loads(result)
+        if not result:
+            raise HTTPException(
+                status_code=500, 
+                detail="Errore nel database: funzione generate_api_key_v2 non disponibile o non configurata correttamente"
+            )
+        
+        try:
+            api_data = json.loads(result)
+        except (json.JSONDecodeError, TypeError) as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Errore nella risposta del database: {str(e)}"
+            )
+        
+        # Controlla se la funzione ha restituito un errore
+        if not api_data.get("success", False):
+            error_msg = api_data.get("message", "Errore sconosciuto nella generazione API key")
+            raise HTTPException(status_code=400, detail=error_msg)
         
         # Marca utente come verificato immediatamente
         await execute_query(
@@ -104,9 +121,9 @@ async def register_user(request: UserRegistrationRequest):
             "status": "success",
             "message": "🎉 API key generata con successo!",
             "api_key": api_data['api_key'],
-            "tier": request.tier or "free",
+            "tier": api_data.get('tier', request.tier or "free"),
             "email": request.email,
-            "monthly_limit": _get_monthly_limit(request.tier or "free"),
+            "monthly_limit": api_data.get('monthly_limit', _get_monthly_limit(request.tier or "free")),
             "note": "⚠️ Salva questa API key in un posto sicuro. Non sarà possibile recuperarla se persa."
         }
         
@@ -143,7 +160,23 @@ async def provision_rapidapi_key(request: RapidAPIKeyRequest):
             fetch="val"
         )
         
-        api_data = json.loads(result)
+        if not result:
+            raise HTTPException(
+                status_code=500, 
+                detail="Errore nel database: funzione generate_api_key_v2 non disponibile"
+            )
+        
+        try:
+            api_data = json.loads(result)
+        except (json.JSONDecodeError, TypeError) as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Errore nella risposta del database: {str(e)}"
+            )
+        
+        if not api_data.get("success", False):
+            error_msg = api_data.get("message", "Errore nella generazione API key per RapidAPI")
+            raise HTTPException(status_code=400, detail=error_msg)
         
         return RapidAPIKeyResponse(
             api_key=api_data['api_key'],
