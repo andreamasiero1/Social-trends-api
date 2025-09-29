@@ -14,8 +14,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copia tutto il codice
 COPY . .
 
-# Esponi la porta
-EXPOSE 8000
+# Esponi la porta (sarà determinata dalla variabile PORT)
+EXPOSE $PORT
 
-# Comando per avviare l'app
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Comando per avviare l'app - usa la variabile PORT di Render
+CMD uvicorn api.main:app --host 0.0.0.0 --port $PORT
