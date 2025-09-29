@@ -114,6 +114,46 @@ async def health_check():
         "timestamp": time.time()
     }
 
+@app.get("/debug/config", tags=["🏠 Info"])
+async def debug_config():
+    """
+    🔍 **Debug Configuration**
+    
+    Mostra informazioni di configurazione (senza credenziali sensibili).
+    """
+    from api.core.database import execute_query
+    import os
+    
+    config_info = {
+        "database_url_configured": bool(settings.DATABASE_URL),
+        "database_url_prefix": settings.get_database_url()[:20] + "..." if settings.get_database_url() else "None",
+        "environment_vars": {
+            "DATABASE_URL": "SET" if os.getenv("DATABASE_URL") else "NOT SET",
+            "POSTGRES_SERVER": os.getenv("POSTGRES_SERVER", "NOT SET"),
+            "PORT": os.getenv("PORT", "NOT SET"),
+        },
+        "computed_database_url": settings.get_database_url()[:30] + "..." if settings.get_database_url() else "None"
+    }
+    
+    # Test connessione database
+    try:
+        test_result = await execute_query("SELECT 1 as test", fetch="val")
+        config_info["database_test"] = "SUCCESS" if test_result == 1 else f"UNEXPECTED: {test_result}"
+    except Exception as e:
+        config_info["database_test"] = f"ERROR: {str(e)}"
+    
+    # Test funzione generate_api_key_v2
+    try:
+        func_test = await execute_query(
+            "SELECT EXISTS(SELECT 1 FROM pg_proc WHERE proname = 'generate_api_key_v2')",
+            fetch="val"
+        )
+        config_info["function_exists"] = func_test
+    except Exception as e:
+        config_info["function_check"] = f"ERROR: {str(e)}"
+    
+    return config_info
+
 @app.get("/health/detailed", tags=["🏠 Info"])
 async def detailed_health_check():
     """
