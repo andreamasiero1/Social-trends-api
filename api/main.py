@@ -75,8 +75,8 @@ async def root():
             "generate_api_key": f"{settings.API_V1_STR}/auth/generate-key",
             "usage_stats": f"{settings.API_V1_STR}/auth/usage",
             "register_v2": f"{settings.API_V1_STR}/auth/v2/register",
-            "verify_email": f"{settings.API_V1_STR}/auth/v2/verify-email",
-            "my_account": f"{settings.API_V1_STR}/auth/v2/my-account"
+            "my_account": f"{settings.API_V1_STR}/auth/v2/my-account",
+            "api_keys_by_email": f"{settings.API_V1_STR}/auth/v2/keys/{{email}}"
         },
         "supported_platforms": ["tiktok", "instagram"],
         "plans": {
@@ -99,6 +99,36 @@ async def health_check():
         "version": settings.VERSION,
         "timestamp": time.time()
     }
+
+@app.get("/health/detailed", tags=["🏠 Info"])
+async def detailed_health_check():
+    """
+    🔍 **Detailed Health Check**
+    
+    Verifica l'API e la connessione al database.
+    """
+    from api.core.database import execute_query
+    
+    result = {
+        "status": "healthy",
+        "version": settings.VERSION,
+        "timestamp": time.time(),
+        "database": "unknown"
+    }
+    
+    try:
+        # Test semplice del database
+        db_result = await execute_query("SELECT 1 as test", fetch="val")
+        if db_result == 1:
+            result["database"] = "connected"
+        else:
+            result["database"] = "error"
+            result["status"] = "degraded"
+    except Exception as e:
+        result["database"] = f"error: {str(e)}"
+        result["status"] = "degraded"
+    
+    return result
 
 # Error handlers
 @app.exception_handler(404)
