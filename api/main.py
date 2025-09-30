@@ -74,12 +74,26 @@ async def root():
     
     API per aggregare e analizzare trend da TikTok e Instagram in tempo reale.
     """
+    import os
+    
+    # Debug info per DATABASE_URL
+    db_url_set = "SET" if os.getenv("DATABASE_URL") else "NOT_SET"
+    db_url_preview = ""
+    if os.getenv("DATABASE_URL"):
+        url = os.getenv("DATABASE_URL")
+        db_url_preview = url[:30] + "..." + url[-10:] if len(url) > 40 else url[:40] + "..."
+    
     return {
         "name": settings.PROJECT_NAME,
         "version": settings.VERSION,
         "description": settings.PROJECT_DESCRIPTION,
         "documentation": "/docs",
         "health_check": "/health",
+        "debug": {
+            "DATABASE_URL": db_url_set,
+            "preview": db_url_preview,
+            "port": os.getenv("PORT", "NOT_SET")
+        },
         "endpoints": {
             "trends_global": f"{settings.API_V1_STR}/trends/global",
             "trends_platform": f"{settings.API_V1_STR}/trends/platform",

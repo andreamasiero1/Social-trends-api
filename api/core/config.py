@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     PORT: int = int(os.getenv("PORT", 8000))
     
     # Database - supporta sia DATABASE_URL che singole variabili
-    DATABASE_URL: str = ""  # Campo per pydantic
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")  # Legge da environment
     POSTGRES_SERVER: str = os.getenv("POSTGRES_SERVER", "localhost")
     POSTGRES_PORT: str = os.getenv("POSTGRES_PORT", "5432")
     POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
