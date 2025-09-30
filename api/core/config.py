@@ -24,12 +24,19 @@ class Settings(BaseSettings):
     def get_database_url(self) -> str:
         # Se DATABASE_URL è configurato nel .env, usalo
         if self.DATABASE_URL:
+            url = self.DATABASE_URL
             # Sostituisci postgresql:// con postgresql+asyncpg:// per asyncpg
-            if self.DATABASE_URL.startswith("postgresql://"):
-                return self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
-            return self.DATABASE_URL
+            if url.startswith("postgresql://"):
+                url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+            
+            # Aggiungi SSL per Render se non presente
+            if "sslmode" not in url:
+                separator = "&" if "?" in url else "?"
+                url += f"{separator}sslmode=require"
+            
+            return url
         # Altrimenti costruisci l'URL dalle singole variabili
-        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        return f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_SERVER}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}?sslmode=require"
     
     # Redis per Celery
     REDIS_HOST: str = os.getenv("REDIS_HOST", "localhost")
